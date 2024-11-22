@@ -4,87 +4,61 @@ const cors = require("cors");
 const axios = require("axios");
 
 const app = express();
-app.use(cors());
 app.use(bodyParser.json());
+app.use(cors());
 
 const posts = {};
 
-// Function to handle different event types
-const handleEvents = (type, data) => {
-  try {
-    if (type === "PostCreated") {
-      const { id, title } = data;
+const handleEvent = (type, data) => {
+  if (type === "PostCreated") {
+    const { id, title } = data;
 
-      posts[id] = {
-        id,
-        title,
-        comments: [],
-      };
-    } else if (type === "CommentCreated") {
-      const { id, content, postId, status } = data;
-      const post = posts[postId];
+    posts[id] = { id, title, comments: [] };
+  }
 
-      if (post) {
-        post.comments.push({ id, content, status });
-      } else {
-        console.warn(`Post with ID ${postId} not found for CommentCreated event`);
-      }
-    } else if (type === "CommentUpdated") {
-      const { id, content, postId, status } = data;
-      const post = posts[postId];
+  if (type === "CommentCreated") {
+    const { id, content, postId, status } = data;
 
-      if (post) {
-        const comment = post.comments.find((comment) => comment.id === id);
-        if (comment) {
-          comment.status = status;
-          comment.content = content;
-        } else {
-          console.warn(`Comment with ID ${id} not found for CommentUpdated event`);
-        }
-      } else {
-        console.warn(`Post with ID ${postId} not found for CommentUpdated event`);
-      }
-    }
-  } catch (err) {
-    console.error(`Error handling event type "${type}":`, err.message);
+    const post = posts[postId];
+    post.comments.push({ id, content, status });
+  }
+
+  if (type === "CommentUpdated") {
+    const { id, content, postId, status } = data;
+
+    const post = posts[postId];
+    const comment = post.comments.find((comment) => {
+      return comment.id === id;
+    });
+
+    comment.status = status;
+    comment.content = content;
   }
 };
 
-// Endpoint to retrieve all posts
 app.get("/posts", (req, res) => {
   res.send(posts);
 });
 
-// Endpoint to process new events
 app.post("/events", (req, res) => {
-  try {
-    const { type, data } = req.body;
-    handleEvents(type, data);
-    console.log("Query service Post and comment data:", posts);
-    res.status(200).send({});
-  } catch (err) {
-    console.error("Error processing event:", err.message);
-    res.status(500).send({ error: "Error processing event" });
-  }
+  const { type, data } = req.body;
+
+  handleEvent(type, data);
+
+  res.send({});
 });
 
-// Start the service and process historical events
 app.listen(4002, async () => {
+  console.log("Listening on 4002");
   try {
-    console.log('1')
-    const res = await axios.get("http://localhost:4005/events");
-    console.log('1')
+    const res = await axios.get("http://event-bus-srv:4005/events");
 
-    const events = res.data;
-    console.log('1')
+    for (let event of res.data) {
+      console.log("Processing event:", event.type);
 
-
-    for (const event of events) {
-      console.log("Processing older event:", event.type);
-      handleEvents(event.type, event.data);
+      handleEvent(event.type, event.data);
     }
-  } catch (err) {
-    console.error("Error fetching historical events:", err.message);
+  } catch (error) {
+    console.log(error.message);
   }
-  console.log("Listening on 4002 query service...");
 });
