@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: posts
-          image: rallycoding/posts-100
+          image: ashish7974/posts
 ---
 apiVersion: v1
 kind: Service

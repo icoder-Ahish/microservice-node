@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: event-bus
-          image: rallycoding/event-bus-89
+          image: ashish7974/event-bus
 ---
 apiVersion: v1
 kind: Service
